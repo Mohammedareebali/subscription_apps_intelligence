@@ -1,16 +1,15 @@
 """Build a 3-page interactive Plotly HTML dashboard + nav index.
 
+Each page answers one business question:
+  1. Market Overview      — What does the Google Play market look like?
+  2. Category Deep-Dive   — Which categories monetise best?
+  3. Opportunity Finder   — Where should a new paid app be built?
+
 Runs fully from processed parquet. Outputs are self-contained HTML files
-that open in any browser — no Power BI / no install required.
+that open in any browser — no install required.
 
 Usage:
     python dashboard/build_dashboard.py
-
-Outputs:
-    dashboard/index.html
-    dashboard/01_market_overview.html
-    dashboard/02_category_deepdive.html
-    dashboard/03_opportunity_finder.html
 """
 
 from __future__ import annotations
@@ -22,7 +21,6 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -43,6 +41,8 @@ BRAND = {
     "green": "#3B8132",
     "grey": "#6B6B6B",
     "bg": "#F5F7FA",
+    "insight_bg": "#EEF4FA",
+    "insight_border": "#2E86AB",
 }
 
 
@@ -87,11 +87,11 @@ def category_table(apps: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 NAV = """
-<nav style="background:#1B3A57;padding:14px 28px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;">
-  <a href="index.html" style="color:#fff;text-decoration:none;font-weight:700;margin-right:28px;">&#9776; Subscription Apps Dashboard</a>
-  <a href="01_market_overview.html" style="color:#cfd8dc;text-decoration:none;margin-right:20px;">1 · Market Overview</a>
-  <a href="02_category_deepdive.html" style="color:#cfd8dc;text-decoration:none;margin-right:20px;">2 · Category Deep-Dive</a>
-  <a href="03_opportunity_finder.html" style="color:#cfd8dc;text-decoration:none;">3 · Opportunity Finder</a>
+<nav style="background:#1B3A57;padding:16px 32px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+  <a href="index.html" style="color:#fff;text-decoration:none;font-weight:700;margin-right:32px;font-size:15px;letter-spacing:0.3px;">Subscription App Intelligence</a>
+  <a href="01_market_overview.html" style="color:#cfd8dc;text-decoration:none;margin-right:24px;font-size:14px;">Market Overview</a>
+  <a href="02_category_deepdive.html" style="color:#cfd8dc;text-decoration:none;margin-right:24px;font-size:14px;">Category Deep-Dive</a>
+  <a href="03_opportunity_finder.html" style="color:#cfd8dc;text-decoration:none;font-size:14px;">Opportunity Finder</a>
 </nav>
 """
 
@@ -104,19 +104,34 @@ def wrap_page(title: str, body_html: str) -> str:
 <title>{title}</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  body {{ margin:0; background:{BRAND['bg']}; font-family:-apple-system,Segoe UI,Roboto,sans-serif; color:#222; }}
-  .wrap {{ max-width:1400px; margin:0 auto; padding:24px; }}
-  h1 {{ margin:0 0 4px 0; font-size:26px; }}
-  .sub {{ color:#6B6B6B; margin-bottom:20px; }}
-  .kpi-grid {{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }}
-  .kpi {{ background:#fff; border-radius:10px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }}
-  .kpi .label {{ color:#6B6B6B; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; }}
-  .kpi .value {{ font-size:28px; font-weight:700; color:#1B3A57; margin-top:4px; }}
-  .card {{ background:#fff; border-radius:10px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,0.06); margin-bottom:18px; }}
+  body {{ margin:0; background:{BRAND['bg']}; font-family:-apple-system,Segoe UI,Roboto,sans-serif; color:#222; line-height:1.5; }}
+  .wrap {{ max-width:1320px; margin:0 auto; padding:32px 24px 48px; }}
+  h1 {{ margin:0 0 6px 0; font-size:30px; font-weight:700; color:#1B3A57; }}
+  h2 {{ margin:32px 0 12px 0; font-size:20px; font-weight:600; color:#1B3A57; }}
+  h3 {{ margin:0 0 8px 0; font-size:16px; font-weight:600; color:#1B3A57; }}
+  .question {{ color:{BRAND['grey']}; margin-bottom:28px; font-size:15px; font-style:italic; }}
+  .kpi-grid {{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px; }}
+  .kpi {{ background:#fff; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }}
+  .kpi .label {{ color:{BRAND['grey']}; font-size:12px; text-transform:uppercase; letter-spacing:0.8px; font-weight:600; }}
+  .kpi .value {{ font-size:30px; font-weight:700; color:#1B3A57; margin-top:6px; line-height:1.1; }}
+  .kpi .sub {{ font-size:12px; color:{BRAND['grey']}; margin-top:4px; }}
+  .card {{ background:#fff; border-radius:10px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,0.06); margin-bottom:24px; }}
+  .card h3 {{ margin-bottom:4px; }}
+  .card .chart-sub {{ color:{BRAND['grey']}; font-size:13px; margin-bottom:10px; }}
+  .insight {{ background:{BRAND['insight_bg']}; border-left:4px solid {BRAND['insight_border']};
+             border-radius:6px; padding:16px 20px; margin:0 0 24px 0; }}
+  .insight .label {{ font-size:11px; font-weight:700; color:{BRAND['insight_border']};
+                    text-transform:uppercase; letter-spacing:1px; }}
+  .insight p {{ margin:4px 0 0 0; font-size:14.5px; color:#1B3A57; }}
+  .grid-2 {{ display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }}
   table.data {{ width:100%; border-collapse:collapse; font-size:13px; }}
-  table.data th {{ background:#1B3A57; color:#fff; padding:8px; text-align:left; }}
-  table.data td {{ padding:6px 8px; border-bottom:1px solid #eee; }}
-  table.data tr:hover {{ background:#f0f4f8; }}
+  table.data th {{ background:#F5F7FA; color:#1B3A57; padding:10px 12px; text-align:left;
+                  font-weight:600; font-size:11px; letter-spacing:0.5px; text-transform:uppercase; border-bottom:2px solid #E0E6ED; }}
+  table.data td {{ padding:10px 12px; border-bottom:1px solid #F0F2F5; }}
+  table.data tr:hover {{ background:#FAFBFC; }}
+  .rank-badge {{ display:inline-block; width:26px; height:26px; line-height:26px; text-align:center;
+                background:#1B3A57; color:#fff; border-radius:50%; font-weight:700; font-size:12px; }}
+  .rank-badge.gold {{ background:#F18F01; }}
 </style>
 </head>
 <body>
@@ -129,16 +144,26 @@ def wrap_page(title: str, body_html: str) -> str:
 
 
 def fig_to_div(fig: go.Figure, height: int = 400) -> str:
-    fig.update_layout(template=TEMPLATE, margin=dict(l=40, r=20, t=40, b=40), height=height)
+    fig.update_layout(
+        template=TEMPLATE,
+        margin=dict(l=50, r=30, t=30, b=50),
+        height=height,
+        font=dict(family="-apple-system,Segoe UI,Roboto,sans-serif", size=12, color="#222"),
+    )
     return fig.to_html(include_plotlyjs="cdn", full_html=False, config=PLOTLY_CONFIG)
 
 
-def kpi_card(label: str, value: str) -> str:
-    return f'<div class="kpi"><div class="label">{label}</div><div class="value">{value}</div></div>'
+def kpi_card(label: str, value: str, sub: str = "") -> str:
+    sub_html = f'<div class="sub">{sub}</div>' if sub else ""
+    return f'<div class="kpi"><div class="label">{label}</div><div class="value">{value}</div>{sub_html}</div>'
+
+
+def insight(text: str) -> str:
+    return f'<div class="insight"><div class="label">Key Insight</div><p>{text}</p></div>'
 
 
 # ---------------------------------------------------------------------------
-# Page 1 — Market Overview
+# Page 1 — Market Overview  (What does the app market look like?)
 # ---------------------------------------------------------------------------
 
 def page_market_overview(apps: pd.DataFrame) -> str:
@@ -146,15 +171,16 @@ def page_market_overview(apps: pd.DataFrame) -> str:
     avg_rating = apps["Rating"].mean()
     pct_paid = apps["is_paid"].mean() * 100
     avg_sentiment = apps["mean_compound"].mean()
+    n_categories = apps["category"].nunique()
 
     kpis = "".join([
-        kpi_card("Apps analysed", f"{n_apps:,}"),
-        kpi_card("Avg rating", f"{avg_rating:.2f} / 5"),
-        kpi_card("Paid share", f"{pct_paid:.1f}%"),
-        kpi_card("Avg sentiment", f"+{avg_sentiment:.2f}"),
+        kpi_card("Apps analysed", f"{n_apps:,}", f"{n_categories} categories"),
+        kpi_card("Free vs paid", "92.2% / 7.8%", "freemium dominates"),
+        kpi_card("Average rating", f"{avg_rating:.2f}", "out of 5 stars"),
+        kpi_card("Review sentiment", f"+{avg_sentiment:.2f}", "VADER compound"),
     ])
 
-    # Bar: top 15 categories by app count
+    # HERO: top 15 categories by app count
     top_cats = apps["category"].value_counts().head(15).reset_index()
     top_cats.columns = ["category", "count"]
     top_cats["category"] = top_cats["category"].str.replace("_", " ").str.title()
@@ -162,141 +188,168 @@ def page_market_overview(apps: pd.DataFrame) -> str:
         top_cats.sort_values("count"),
         x="count", y="category", orientation="h",
         color="count", color_continuous_scale="Blues",
-        title="Top 15 categories by app count",
     )
-    fig_bar.update_layout(showlegend=False, coloraxis_showscale=False, yaxis_title="", xaxis_title="Apps")
+    fig_bar.update_layout(showlegend=False, coloraxis_showscale=False,
+                          yaxis_title="", xaxis_title="Number of apps")
 
-    # Histogram: rating, coloured by paid
+    # SUPPORT 1: rating distribution
     fig_hist = px.histogram(
         apps.dropna(subset=["Rating"]),
-        x="Rating", color="price_band",
-        nbins=30, barmode="overlay", opacity=0.7,
-        color_discrete_map={"Free": BRAND["blue"], "$0.99-$2.99": BRAND["orange"],
-                            "$3-$4.99": BRAND["red"], "$5-$9.99": BRAND["green"],
-                            "$10+": BRAND["navy"]},
-        title="Rating distribution by price band",
+        x="Rating", nbins=30,
+        color_discrete_sequence=[BRAND["blue"]],
     )
-    fig_hist.update_layout(xaxis_title="Rating", yaxis_title="Apps", legend_title="")
+    fig_hist.update_layout(xaxis_title="App rating", yaxis_title="Apps", bargap=0.05)
 
-    # Donut: free vs paid
-    paid_split = apps["price_band"].eq("Free").map({True: "Free", False: "Paid"}).value_counts()
-    fig_donut = go.Figure(data=[go.Pie(
-        labels=paid_split.index, values=paid_split.values, hole=0.55,
-        marker=dict(colors=[BRAND["blue"], BRAND["orange"]]),
-    )])
-    fig_donut.update_layout(title="Free vs Paid", showlegend=True)
-
-    # Sentiment by category (top 10 with reviews scored)
+    # SUPPORT 2: sentiment by category (top 10 only, tighter)
     sent = (apps.dropna(subset=["mean_compound"])
             .groupby("category")["mean_compound"]
             .agg(["mean", "size"])
             .query("size >= 20")
             .sort_values("mean", ascending=True)
-            .tail(12).reset_index())
+            .tail(10).reset_index())
     sent["category"] = sent["category"].str.replace("_", " ").str.title()
     fig_sent = px.bar(
         sent, x="mean", y="category", orientation="h",
         color="mean", color_continuous_scale="RdYlGn", range_color=(-0.2, 0.6),
-        title="Avg review sentiment — top 12 categories",
     )
-    fig_sent.update_layout(coloraxis_showscale=False, xaxis_title="VADER compound", yaxis_title="")
+    fig_sent.update_layout(coloraxis_showscale=False,
+                           xaxis_title="Average VADER sentiment", yaxis_title="")
 
     body = f"""
-    <h1>1 · Market Overview</h1>
-    <div class="sub">9,659 Google Play apps · 33 categories · 7.8% paid. A bird's-eye view of the market.</div>
+    <h1>What the Google Play market looks like</h1>
+    <div class="question">Market scale, pricing model, and quality signals across 9,659 apps</div>
+
     <div class="kpi-grid">{kpis}</div>
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:18px;">
-      <div class="card">{fig_to_div(fig_bar, 480)}</div>
-      <div class="card">{fig_to_div(fig_donut, 480)}</div>
+
+    {insight("Freemium dominates Google Play — only 7.8% of apps are paid. Any new entrant defaulting to a paid tier needs to justify that choice against a 92% free-app baseline.")}
+
+    <div class="card">
+      <h3>The biggest categories by app count</h3>
+      <div class="chart-sub">Family, Games, and Tools lead — but volume doesn't equal opportunity (see page 3)</div>
+      {fig_to_div(fig_bar, 480)}
     </div>
-    <div class="card">{fig_to_div(fig_hist, 380)}</div>
-    <div class="card">{fig_to_div(fig_sent, 420)}</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>How users rate apps</h3>
+        <div class="chart-sub">Ratings cluster around 4.3 — a high bar for new entrants</div>
+        {fig_to_div(fig_hist, 360)}
+      </div>
+      <div class="card">
+        <h3>Most positively reviewed categories</h3>
+        <div class="chart-sub">Average sentiment from VADER analysis of user reviews</div>
+        {fig_to_div(fig_sent, 360)}
+      </div>
+    </div>
     """
-    return wrap_page("Market Overview · Subscription Apps Dashboard", body)
+    return wrap_page("Market Overview · Subscription App Intelligence", body)
 
 
 # ---------------------------------------------------------------------------
-# Page 2 — Category Deep-Dive
+# Page 2 — Category Deep-Dive  (Which categories monetise best?)
 # ---------------------------------------------------------------------------
 
 def page_category_deepdive(apps: pd.DataFrame, cat: pd.DataFrame) -> str:
-    # Scatter: rating x log_installs, size by reviews, color by category
-    top_cats = cat.sort_values("n_apps", ascending=False).head(10)["category"].tolist()
+    # Headline KPIs for paid apps
+    paid = apps[apps["is_paid"] == 1]
+    median_paid_price = paid["price_usd"].median()
+    pct_1_5_band = ((paid["price_usd"] >= 1) & (paid["price_usd"] <= 4.99)).mean() * 100
+    paid_rating = paid["Rating"].mean()
+    free_rating = apps[apps["is_paid"] == 0]["Rating"].mean()
+
+    kpis = "".join([
+        kpi_card("Paid apps", f"{len(paid):,}", "7.8% of the market"),
+        kpi_card("Median paid price", f"${median_paid_price:.2f}", "typical charge"),
+        kpi_card("In $1–$4.99 band", f"{pct_1_5_band:.0f}%", "the sweet spot"),
+        kpi_card("Paid rating edge", f"+{paid_rating - free_rating:.2f}★", f"{paid_rating:.2f} vs {free_rating:.2f}"),
+    ])
+
+    # HERO: rating × installs scatter (top 8 categories for readability)
+    top_cats = cat.sort_values("n_apps", ascending=False).head(8)["category"].tolist()
     plot_apps = apps[apps["category"].isin(top_cats)].dropna(subset=["Rating", "log_installs"])
     plot_apps = plot_apps.copy()
     plot_apps["category_label"] = plot_apps["category"].str.replace("_", " ").str.title()
 
     fig_scatter = px.scatter(
         plot_apps,
-        x="log_installs", y="Rating", size="reviews", color="category_label",
-        hover_name="App", hover_data={"reviews": ":,d", "price_usd": ":.2f"},
-        title="Rating vs log(installs) — top 10 categories by app count",
-        size_max=30, opacity=0.65,
+        x="log_installs", y="Rating",
+        size="reviews", color="category_label",
+        hover_name="App",
+        hover_data={"reviews": ":,d", "price_usd": ":.2f",
+                    "log_installs": False, "category_label": False},
+        size_max=32, opacity=0.55,
     )
-    fig_scatter.update_layout(xaxis_title="log(Installs)", yaxis_title="Rating", legend_title="")
+    fig_scatter.update_layout(
+        xaxis_title="Reach (log of installs)",
+        yaxis_title="User rating",
+        legend_title="Category",
+    )
 
-    # Price band bar (paid only)
-    paid = apps[apps["is_paid"] == 1]
+    # SUPPORT 1: price band bar (paid only)
     band_order = ["$0.99-$2.99", "$3-$4.99", "$5-$9.99", "$10+"]
     band_counts = paid["price_band"].value_counts().reindex(band_order).fillna(0).reset_index()
     band_counts.columns = ["price_band", "count"]
+    total = band_counts["count"].sum() or 1
+    band_counts["pct"] = (band_counts["count"] / total * 100).fillna(0).round().astype(int)
     fig_price = px.bar(
         band_counts, x="price_band", y="count",
         color="count", color_continuous_scale="Oranges",
-        title="Paid apps by price band",
+        text=band_counts["pct"].astype(str) + "%",
     )
-    fig_price.update_layout(coloraxis_showscale=False, xaxis_title="", yaxis_title="Apps")
+    fig_price.update_traces(textposition="outside")
+    fig_price.update_layout(coloraxis_showscale=False,
+                            xaxis_title="Price band", yaxis_title="Paid apps")
 
-    # Top-10 apps by install-weighted rating
+    # SUPPORT 2: top 10 apps by install-weighted rating (trimmed from 15)
     top_apps = (apps.dropna(subset=["Rating", "installs"])
                 .assign(weighted=lambda d: d["Rating"] * d["log_installs"])
-                .nlargest(15, "weighted")
-                [["App", "category", "Rating", "Installs", "reviews"]])
+                .nlargest(10, "weighted")
+                [["App", "category", "Rating", "Installs"]])
     rows = "".join([
-        f"<tr><td>{r['App']}</td><td>{r['category'].replace('_',' ').title()}</td>"
-        f"<td>{r['Rating']:.1f}</td><td>{r['Installs']}</td><td>{int(r['reviews']):,}</td></tr>"
-        for _, r in top_apps.iterrows()
+        f"<tr><td><span class='rank-badge{' gold' if i<3 else ''}'>{i+1}</span></td>"
+        f"<td>{r['App']}</td><td>{r['category'].replace('_',' ').title()}</td>"
+        f"<td><strong>{r['Rating']:.1f}</strong></td><td>{r['Installs']}</td></tr>"
+        for i, (_, r) in enumerate(top_apps.iterrows())
     ])
     table_html = f"""
     <table class="data">
-      <thead><tr><th>App</th><th>Category</th><th>Rating</th><th>Installs</th><th>Reviews</th></tr></thead>
+      <thead><tr><th>#</th><th>App</th><th>Category</th><th>Rating</th><th>Installs</th></tr></thead>
       <tbody>{rows}</tbody>
     </table>
     """
 
-    # Sentiment gauge (overall)
-    avg_sent = apps["mean_compound"].mean()
-    fig_gauge = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=avg_sent,
-        number={"valueformat": "+.2f"},
-        title={"text": "Avg review sentiment (VADER compound)"},
-        gauge={
-            "axis": {"range": [-1, 1]},
-            "bar": {"color": BRAND["navy"]},
-            "steps": [
-                {"range": [-1, -0.3], "color": "#f7c8c1"},
-                {"range": [-0.3, 0.3], "color": "#f2f2f2"},
-                {"range": [0.3, 1], "color": "#c9e4c5"},
-            ],
-        },
-    ))
-
     body = f"""
-    <h1>2 · Category Deep-Dive</h1>
-    <div class="sub">Ratings-vs-reach scatter across the 10 largest categories, paid pricing distribution, and the heaviest-hitting apps by install-weighted rating.</div>
-    <div class="card">{fig_to_div(fig_scatter, 560)}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-      <div class="card">{fig_to_div(fig_price, 380)}</div>
-      <div class="card">{fig_to_div(fig_gauge, 380)}</div>
+    <h1>Where paid apps actually win</h1>
+    <div class="question">Pricing behaviour, ratings edge, and the apps setting the benchmark</div>
+
+    <div class="kpi-grid">{kpis}</div>
+
+    {insight("Paid apps cluster at $1.99–$4.99 — and rate <strong>+0.11★ higher</strong> than free apps even after controlling for category, installs and size (OLS fixed effects, p&lt;0.0001). The premium is modest but real.")}
+
+    <div class="card">
+      <h3>Ratings vs reach — top 8 categories by volume</h3>
+      <div class="chart-sub">Hover any dot for the app. Bubble size = review count.</div>
+      {fig_to_div(fig_scatter, 520)}
     </div>
-    <div class="card"><h3 style="margin-top:0">Top 15 apps — install-weighted rating</h3>{table_html}</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>What winning paid apps charge</h3>
+        <div class="chart-sub">70% of paid apps price between $1 and $5</div>
+        {fig_to_div(fig_price, 360)}
+      </div>
+      <div class="card">
+        <h3>Top 10 apps by install-weighted rating</h3>
+        <div class="chart-sub">The benchmark — what a new entrant is competing against</div>
+        {table_html}
+      </div>
+    </div>
     """
-    return wrap_page("Category Deep-Dive · Subscription Apps Dashboard", body)
+    return wrap_page("Category Deep-Dive · Subscription App Intelligence", body)
 
 
 # ---------------------------------------------------------------------------
-# Page 3 — Opportunity Finder
+# Page 3 — Opportunity Finder  (Where should a new paid app be built?)
 # ---------------------------------------------------------------------------
 
 def page_opportunity(cat: pd.DataFrame, shortlist: pd.DataFrame) -> str:
@@ -305,7 +358,16 @@ def page_opportunity(cat: pd.DataFrame, shortlist: pd.DataFrame) -> str:
     c["qgap_n"] = normalize_minmax(c["quality_gap"])
     c["label"] = c["category"].str.replace("_", " ").str.title()
 
-    # Hero quadrant
+    # Headline KPIs
+    top_cat = c.iloc[0]
+    kpis = "".join([
+        kpi_card("Top opportunity", top_cat["label"], f"score {top_cat['opportunity_score']:.2f}"),
+        kpi_card("Categories ranked", f"{len(c)}", "≥ 20 apps each"),
+        kpi_card("Rank stability", "τ = 0.78", "Kendall across 3 weight schemes"),
+        kpi_card("Shortlist size", f"{len(shortlist)}", "demand-side screen"),
+    ])
+
+    # HERO: quadrant
     fig_q = px.scatter(
         c,
         x="demand_n", y="qgap_n",
@@ -314,55 +376,76 @@ def page_opportunity(cat: pd.DataFrame, shortlist: pd.DataFrame) -> str:
         hover_name="label",
         hover_data={"n_apps": True, "median_rating": ":.2f", "pct_paid": ":.1%",
                     "opportunity_score": ":.2f", "demand_n": False, "qgap_n": False},
-        text=c.apply(lambda r: r["label"] if r["opportunity_score"] >= c["opportunity_score"].quantile(0.75) else "", axis=1),
-        title="Where to build — category opportunity quadrant",
-        size_max=48,
+        text=c.apply(lambda r: r["label"] if r["opportunity_score"] >= c["opportunity_score"].quantile(0.8) else "", axis=1),
+        size_max=52,
     )
-    fig_q.update_traces(textposition="top center", textfont=dict(size=10))
+    fig_q.update_traces(textposition="top center", textfont=dict(size=11, color="#1B3A57"))
     fig_q.update_layout(
-        xaxis_title="Demand  (normalized mean log-installs)",
-        yaxis_title="Quality gap  (1 − median rating, normalized)",
+        xaxis_title="Market size  →  (bigger user base)",
+        yaxis_title="Quality gap  →  (room to be the best app)",
         coloraxis_colorbar=dict(title="Score"),
     )
 
-    # Bar: top 15 by opportunity score
-    top15 = c.sort_values("opportunity_score", ascending=True).tail(15)
+    # SUPPORT 1: top 10 bar (trimmed from 15)
+    top10 = c.sort_values("opportunity_score", ascending=True).tail(10)
     fig_bar = px.bar(
-        top15, x="opportunity_score", y="label", orientation="h",
+        top10, x="opportunity_score", y="label", orientation="h",
         color="opportunity_score", color_continuous_scale="Viridis",
-        title="Top 15 categories by composite opportunity score",
+        text=top10["opportunity_score"].round(2),
     )
-    fig_bar.update_layout(coloraxis_showscale=False, yaxis_title="", xaxis_title="Score")
+    fig_bar.update_traces(textposition="outside")
+    fig_bar.update_layout(coloraxis_showscale=False, yaxis_title="", xaxis_title="Opportunity score")
 
-    # Shortlist table
-    s = shortlist[["App", "category", "Rating", "Installs", "reviews", "shortlist_score"]].copy()
+    # SUPPORT 2: shortlist top 10 with rank badges
+    s = (shortlist[["App", "category", "Rating", "Installs", "shortlist_score"]]
+         .head(10).copy())
     s["category"] = s["category"].str.replace("_", " ").str.title()
     rows = "".join([
-        f"<tr><td>{r['App']}</td><td>{r['category']}</td>"
-        f"<td>{r['Rating']:.1f}</td><td>{r['Installs']}</td>"
-        f"<td>{int(r['reviews']):,}</td><td>{r['shortlist_score']:.1f}</td></tr>"
-        for _, r in s.iterrows()
+        f"<tr><td><span class='rank-badge{' gold' if i<3 else ''}'>{i+1}</span></td>"
+        f"<td>{r['App']}</td><td>{r['category']}</td>"
+        f"<td><strong>{r['Rating']:.1f}</strong></td><td>{r['Installs']}</td>"
+        f"<td>{r['shortlist_score']:.1f}</td></tr>"
+        for i, (_, r) in enumerate(s.iterrows())
     ])
     table_html = f"""
     <table class="data">
-      <thead><tr><th>App</th><th>Category</th><th>Rating</th><th>Installs</th><th>Reviews</th><th>Score</th></tr></thead>
+      <thead><tr><th>#</th><th>App</th><th>Category</th><th>Rating</th><th>Installs</th><th>Score</th></tr></thead>
       <tbody>{rows}</tbody>
     </table>
     """
 
     body = f"""
-    <h1>3 · Opportunity Finder</h1>
-    <div class="sub">Composite score = demand × quality-gap × supply-gap × monetization. Ranking is stable across 3 weight schemes (Kendall τ = 0.78).</div>
-    <div class="card">{fig_to_div(fig_q, 600)}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-      <div class="card">{fig_to_div(fig_bar, 520)}</div>
-      <div class="card"><h3 style="margin-top:0">Acquisition shortlist (demand-side screen)</h3>{table_html}</div>
+    <h1>Best categories to launch new paid apps</h1>
+    <div class="question">Ranked by demand, quality gap, competition thinness and monetization — stable across 3 weight schemes</div>
+
+    <div class="kpi-grid">{kpis}</div>
+
+    {insight(f"<strong>{top_cat['label']}, Weather, and House &amp; Home</strong> rank top — strong user demand combined with a meaningful quality gap and thin competition. The ranking survives re-weighting (Kendall τ = 0.78), so the top 5 aren't artefacts of a single weighting choice.")}
+
+    <div class="card">
+      <h3>Where to build — the opportunity quadrant</h3>
+      <div class="chart-sub">Upper-right quadrant = big market × room to win. Bubble size = app count in category. Colour = composite score.</div>
+      {fig_to_div(fig_q, 560)}
     </div>
-    <div class="sub" style="margin-top:10px;font-size:12px;">
-      <strong>Caveat:</strong> shortlist filters on rating ≥ 4.3, installs ≥ 100k, reviews ≥ 5k, updated ≤ 24 months. Google Play has no revenue / DAU / churn — layer SensorTower or data.ai estimates before any LOI.
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Top 10 categories to enter</h3>
+        <div class="chart-sub">Composite opportunity score (0–1 scale)</div>
+        {fig_to_div(fig_bar, 440)}
+      </div>
+      <div class="card">
+        <h3>Top 10 acquisition shortlist</h3>
+        <div class="chart-sub">Demand-side screen: rating ≥ 4.3, installs ≥ 100k, reviews ≥ 5k</div>
+        {table_html}
+      </div>
+    </div>
+
+    <div style="color:{BRAND['grey']};font-size:12px;margin-top:-8px;">
+      <strong>Caveat:</strong> Google Play has no revenue / DAU / churn data. Before any LOI, layer SensorTower or data.ai revenue estimates on this shortlist.
     </div>
     """
-    return wrap_page("Opportunity Finder · Subscription Apps Dashboard", body)
+    return wrap_page("Opportunity Finder · Subscription App Intelligence", body)
 
 
 # ---------------------------------------------------------------------------
@@ -370,39 +453,48 @@ def page_opportunity(cat: pd.DataFrame, shortlist: pd.DataFrame) -> str:
 # ---------------------------------------------------------------------------
 
 def page_index() -> str:
-    body = """
-    <h1 style="font-size:32px;">Subscription Apps Intelligence Dashboard</h1>
-    <div class="sub" style="font-size:15px;">Growth · Pricing · Product · Category opportunity — across 9,659 Google Play apps and 37,427 user reviews.</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:24px;">
+    body = f"""
+    <h1 style="font-size:36px;">Subscription App Intelligence</h1>
+    <div class="question" style="font-size:16px;">
+      Pricing sweet spots, rating drivers, and growth opportunities across 9,659 Google Play apps.
+    </div>
+
+    {insight("70% of top-performing paid apps price between $1–$4.99 · Reviews-per-install is the #1 driver of ratings · Entertainment, Weather and Finance rank as top under-served categories.")}
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:8px;">
       <a href="01_market_overview.html" style="text-decoration:none;color:inherit;">
-        <div class="card" style="cursor:pointer;">
-          <div style="font-size:13px;color:#2E86AB;font-weight:700;">PAGE 1</div>
-          <h3 style="margin:6px 0;">Market Overview</h3>
-          <p style="color:#6B6B6B;">Category counts, rating distribution, free vs paid split, sentiment by category.</p>
+        <div class="card" style="cursor:pointer;border-top:4px solid {BRAND['blue']};">
+          <div style="font-size:11px;color:{BRAND['blue']};font-weight:700;letter-spacing:1px;">PAGE 1</div>
+          <h3 style="margin:8px 0 6px;font-size:18px;">Market Overview</h3>
+          <div style="color:{BRAND['grey']};font-size:13px;margin-bottom:10px;font-style:italic;">What does the Google Play market look like?</div>
+          <p style="color:#444;font-size:13.5px;margin:0;">Market scale, category mix, rating distribution, and user sentiment benchmarks.</p>
         </div>
       </a>
       <a href="02_category_deepdive.html" style="text-decoration:none;color:inherit;">
-        <div class="card" style="cursor:pointer;">
-          <div style="font-size:13px;color:#F18F01;font-weight:700;">PAGE 2</div>
-          <h3 style="margin:6px 0;">Category Deep-Dive</h3>
-          <p style="color:#6B6B6B;">Rating × installs scatter, pricing-band bar, top install-weighted apps, sentiment gauge.</p>
+        <div class="card" style="cursor:pointer;border-top:4px solid {BRAND['orange']};">
+          <div style="font-size:11px;color:{BRAND['orange']};font-weight:700;letter-spacing:1px;">PAGE 2</div>
+          <h3 style="margin:8px 0 6px;font-size:18px;">Category Deep-Dive</h3>
+          <div style="color:{BRAND['grey']};font-size:13px;margin-bottom:10px;font-style:italic;">Which categories monetise best?</div>
+          <p style="color:#444;font-size:13.5px;margin:0;">Pricing bands, ratings edge, and the top apps a new entrant is competing against.</p>
         </div>
       </a>
       <a href="03_opportunity_finder.html" style="text-decoration:none;color:inherit;">
-        <div class="card" style="cursor:pointer;">
-          <div style="font-size:13px;color:#3B8132;font-weight:700;">PAGE 3</div>
-          <h3 style="margin:6px 0;">Opportunity Finder</h3>
-          <p style="color:#6B6B6B;">Hero quadrant chart, top-15 opportunity ranking, demand-side acquisition shortlist.</p>
+        <div class="card" style="cursor:pointer;border-top:4px solid {BRAND['green']};">
+          <div style="font-size:11px;color:{BRAND['green']};font-weight:700;letter-spacing:1px;">PAGE 3</div>
+          <h3 style="margin:8px 0 6px;font-size:18px;">Opportunity Finder</h3>
+          <div style="color:{BRAND['grey']};font-size:13px;margin-bottom:10px;font-style:italic;">Where should a new paid app be built?</div>
+          <p style="color:#444;font-size:13.5px;margin:0;">Quadrant chart, top-10 category ranking, and demand-side acquisition shortlist.</p>
         </div>
       </a>
     </div>
+
     <div class="card" style="margin-top:24px;">
-      <h3 style="margin-top:0;">About this dashboard</h3>
-      <p>Built with Python + Plotly. All charts are interactive: hover for tooltips, click legend items to filter, drag to zoom. Generated by <code>dashboard/build_dashboard.py</code>, fully reproducible from the processed parquet files in <code>data/processed/</code>.</p>
-      <p style="color:#6B6B6B;font-size:13px;">Data: Kaggle Google Play snapshot (2018, CC0). Methodology: <a href="../reports/methodology.md">reports/methodology.md</a>. Findings: <a href="../reports/executive_summary.md">reports/executive_summary.md</a>.</p>
+      <h3>About this dashboard</h3>
+      <p style="color:#444;margin:6px 0;">Built with Python + Plotly. Every chart is interactive: hover for tooltips, click legend items to filter, drag to zoom. Generated by <code>dashboard/build_dashboard.py</code>, fully reproducible from the processed parquet in <code>data/processed/</code>.</p>
+      <p style="color:{BRAND['grey']};font-size:13px;margin:8px 0 0;">Data: Kaggle Google Play snapshot (2018, CC0). Methodology: <a href="../reports/methodology.md">reports/methodology.md</a>. Findings: <a href="../reports/executive_summary.md">reports/executive_summary.md</a>.</p>
     </div>
     """
-    return wrap_page("Subscription Apps Dashboard", body)
+    return wrap_page("Subscription App Intelligence Dashboard", body)
 
 
 # ---------------------------------------------------------------------------
