@@ -25,6 +25,7 @@ import plotly.graph_objects as go
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from src.features import PRICE_BANDS  # noqa: E402
 from src.scoring import composite_score, normalize_minmax  # noqa: E402
 
 DATA = ROOT / "data" / "processed"
@@ -285,9 +286,13 @@ def page_category_deepdive(apps: pd.DataFrame, cat: pd.DataFrame) -> str:
         legend_title="Category",
     )
 
-    # SUPPORT 1: price band bar (paid only)
-    band_order = ["$0.99-$2.99", "$3-$4.99", "$5-$9.99", "$10+"]
-    band_counts = paid["price_band"].value_counts().reindex(band_order).fillna(0).reset_index()
+    # SUPPORT 1: price band bar — winner pool (notebook 02 methodology)
+    # rating ≥ 4.3 AND installs ≥ category median (median taken across paid apps only)
+    paid_rated = apps[(apps["is_paid"] == 1) & apps["Rating"].notna()].copy()
+    cat_median_installs = paid_rated.groupby("category")["installs"].transform("median")
+    winners = paid_rated[(paid_rated["Rating"] >= 4.3) & (paid_rated["installs"] >= cat_median_installs)]
+    band_order = [label for label, _, _ in PRICE_BANDS if label != "Free"]
+    band_counts = winners["price_band"].value_counts().reindex(band_order).fillna(0).reset_index()
     band_counts.columns = ["price_band", "count"]
     total = band_counts["count"].sum() or 1
     band_counts["pct"] = (band_counts["count"] / total * 100).fillna(0).round().astype(int)
@@ -335,7 +340,7 @@ def page_category_deepdive(apps: pd.DataFrame, cat: pd.DataFrame) -> str:
     <div class="grid-2">
       <div class="card">
         <h3>What winning paid apps charge</h3>
-        <div class="chart-sub">70% of paid apps price between $1 and $5</div>
+        <div class="chart-sub">≈70% of paid apps price between $1 and $4.99 — the sweet spot</div>
         {fig_to_div(fig_price, 360)}
       </div>
       <div class="card">
