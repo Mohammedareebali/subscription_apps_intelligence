@@ -1,0 +1,23 @@
+# Raw Kaggle CSVs (too large / licensing) — user must download
+data/raw/*.csv
+data/raw/*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# Power BI intermediate/backup files
+*.pbix.bak
